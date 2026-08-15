@@ -8,17 +8,34 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
+      # ==========================================
+      # 1. Checkout
+      # ==========================================
+
       - name: Checkout project
         uses: actions/checkout@v4
+
+
+      # ==========================================
+      # 2. Python
+      # ==========================================
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+
+
+      # ==========================================
+      # 3. System Dependencies
+      # ==========================================
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -35,47 +52,101 @@ jobs:
             libffi-dev \
             libssl-dev
 
+
+      # ==========================================
+      # 4. Install Buildozer
+      # ==========================================
+
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Initialize Buildozer
+
+      # ==========================================
+      # 5. Create Buildozer Spec
+      # ==========================================
+
+      - name: Create buildozer.spec
         run: |
           buildozer init
 
-      - name: Install Android SDK packages
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
 
-          SDKMANAGER=$(find "$SDK" -name sdkmanager -type f | head -n 1)
-
-          echo "SDK Manager: $SDKMANAGER"
-
-          yes | "$SDKMANAGER" --licenses || true
-
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
+      # ==========================================
+      # 6. Configure Buildozer
+      # ==========================================
 
       - name: Configure Buildozer
         run: |
-          sed -i 's/^# *title = .*/title = VoiceMate AI/' buildozer.spec
-          sed -i 's/^# *package.name = .*/package.name = voicemateai/' buildozer.spec
-          sed -i 's/^# *package.domain = .*/package.domain = org.voicemate/' buildozer.spec
-          sed -i 's/^# *requirements = .*/requirements = python3,kivy/' buildozer.spec
-          sed -i 's/^# *android.api = .*/android.api = 35/' buildozer.spec
-          sed -i 's/^# *android.minapi = .*/android.minapi = 23/' buildozer.spec
-          sed -i 's/^# *android.arch = .*/android.arch = arm64-v8a/' buildozer.spec
-          sed -i 's/^# *orientation = .*/orientation = portrait/' buildozer.spec
+
+          sed -i \
+            's/^# *title = .*/title = VoiceMate AI/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *package.name = .*/package.name = voicemateai/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *package.domain = .*/package.domain = org.nikhil/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *source.include_exts = .*/source.include_exts = py,png,jpg,jpeg,kv,atlas/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *requirements = .*/requirements = python3,kivy,speechrecognition/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *orientation = .*/orientation = portrait/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *android.api = .*/android.api = 35/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *android.minapi = .*/android.minapi = 23/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *android.archs = .*/android.archs = arm64-v8a/' \
+            buildozer.spec
+
+          sed -i \
+            's/^# *android.permissions = .*/android.permissions = RECORD_AUDIO,INTERNET/' \
+            buildozer.spec
+
+
+      # ==========================================
+      # 7. Show Configuration
+      # ==========================================
+
+      - name: Show Buildozer configuration
+        run: |
+          grep -E \
+            '^(title|package.name|package.domain|requirements|orientation|android.api|android.minapi|android.archs|android.permissions)' \
+            buildozer.spec
+
+
+      # ==========================================
+      # 8. Build APK
+      # ==========================================
 
       - name: Build APK
         run: |
           buildozer android debug
+
+
+      # ==========================================
+      # 9. Upload APK
+      # ==========================================
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VoiceMateAI-APK
           path: bin/*.apk
+          if-no-files-found: error
