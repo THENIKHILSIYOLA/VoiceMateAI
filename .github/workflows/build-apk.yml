@@ -40,6 +40,7 @@ jobs:
             git \
             zip \
             unzip \
+            curl \
             openjdk-17-jdk \
             autoconf \
             automake \
@@ -54,7 +55,7 @@ jobs:
 
 
       # ==========================================
-      # 4. Python packages
+      # 4. Install Buildozer
       # ==========================================
 
       - name: Install Buildozer
@@ -65,7 +66,73 @@ jobs:
 
 
       # ==========================================
-      # 5. Create Buildozer configuration
+      # 5. Install Android Command Line Tools
+      # ==========================================
+
+      - name: Install Android SDK Command Line Tools
+        run: |
+
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+
+          cd "$HOME"
+
+          curl -L \
+            -o commandlinetools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
+
+          unzip -q commandlinetools.zip
+
+          mkdir -p "$HOME/android-sdk/cmdline-tools/latest"
+
+          mv cmdline-tools/* \
+            "$HOME/android-sdk/cmdline-tools/latest/"
+
+
+      # ==========================================
+      # 6. Set Android SDK Environment
+      # ==========================================
+
+      - name: Configure Android SDK
+        run: |
+
+          echo "ANDROID_HOME=$HOME/android-sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
+
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$HOME/android-sdk/platform-tools" >> "$GITHUB_PATH"
+
+          echo "ANDROID_HOME=$HOME/android-sdk"
+          echo "SDK Manager:"
+          "$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager" --version
+
+
+      # ==========================================
+      # 7. Accept Android licenses
+      # ==========================================
+
+      - name: Accept Android licenses
+        run: |
+
+          yes | \
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+          --licenses || true
+
+
+      # ==========================================
+      # 8. Install Android SDK packages
+      # ==========================================
+
+      - name: Install Android SDK packages
+        run: |
+
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+
+      # ==========================================
+      # 9. Create Buildozer spec
       # ==========================================
 
       - name: Create buildozer.spec
@@ -74,7 +141,7 @@ jobs:
 
 
       # ==========================================
-      # 6. Configure Buildozer
+      # 10. Configure Buildozer
       # ==========================================
 
       - name: Configure Buildozer
@@ -120,33 +187,42 @@ jobs:
             's/^android.permissions = .*/android.permissions = RECORD_AUDIO,INTERNET/' \
             buildozer.spec
 
+          cat >> buildozer.spec <<'EOF'
+
+          [app:android]
+          android.sdk_path = /home/runner/android-sdk
+          EOF
+
 
       # ==========================================
-      # 7. Prepare Android SDK
+      # 11. Show SDK
       # ==========================================
 
-      - name: Prepare Android SDK
+      - name: Verify Android SDK
         run: |
 
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          echo "======================================"
+          echo "ANDROID SDK"
+          echo "======================================"
 
-          echo "Android SDK: $SDK"
+          echo "ANDROID_HOME:"
+          echo "$ANDROID_HOME"
 
-          mkdir -p "$SDK"
+          echo "SDKMANAGER:"
+          which sdkmanager || true
 
-          echo "Checking SDK..."
+          echo "Build Tools:"
+          ls -la "$ANDROID_HOME/build-tools"
 
-          if [ -d "$ANDROID_HOME" ]; then
-            echo "ANDROID_HOME exists: $ANDROID_HOME"
-          fi
-
-          if [ -d "$ANDROID_SDK_ROOT" ]; then
-            echo "ANDROID_SDK_ROOT exists: $ANDROID_SDK_ROOT"
-          fi
+          echo "AIDL:"
+          find "$ANDROID_HOME/build-tools" \
+            -name aidl \
+            -type f \
+            -print
 
 
       # ==========================================
-      # 8. Build APK
+      # 12. Build APK
       # ==========================================
 
       - name: Build APK
@@ -155,18 +231,24 @@ jobs:
 
 
       # ==========================================
-      # 9. Verify APK
+      # 13. Check APK
       # ==========================================
 
       - name: Check APK
         run: |
-          echo "========== APK FILES =========="
-          find bin -type f -name "*.apk" -print
-          echo "==============================="
+
+          echo "======================================"
+          echo "GENERATED APK"
+          echo "======================================"
+
+          find bin \
+            -type f \
+            -name "*.apk" \
+            -print
 
 
       # ==========================================
-      # 10. Upload APK
+      # 14. Upload APK
       # ==========================================
 
       - name: Upload APK
