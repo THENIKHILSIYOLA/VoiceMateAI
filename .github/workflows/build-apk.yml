@@ -5,251 +5,60 @@ on:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build VoiceMate AI APK
     runs-on: ubuntu-22.04
 
     steps:
-
-      # ==========================================
-      # 1. Checkout
-      # ==========================================
-
       - name: Checkout project
         uses: actions/checkout@v4
-
-
-      # ==========================================
-      # 2. Python
-      # ==========================================
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-
-      # ==========================================
-      # 3. Linux dependencies
-      # ==========================================
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            curl \
-            openjdk-17-jdk \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            cmake \
-            libffi-dev \
-            libssl-dev
+            git zip unzip curl wget openjdk-17-jdk \
+            autoconf automake libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
-
-      # ==========================================
-      # 4. Install Buildozer
-      # ==========================================
-
-      - name: Install Buildozer
+      - name: Install Buildozer & Cython
         run: |
           python -m pip install --upgrade pip
           pip install buildozer
           pip install cython==0.29.34
 
-
-      # ==========================================
-      # 5. Install Android Command Line Tools
-      # ==========================================
-
-      - name: Install Android SDK Command Line Tools
-        run: |
-
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-
-          cd "$HOME"
-
-          curl -L \
-            -o commandlinetools.zip \
-            https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-
-          unzip -q commandlinetools.zip
-
-          mkdir -p "$HOME/android-sdk/cmdline-tools/latest"
-
-          mv cmdline-tools/* \
-            "$HOME/android-sdk/cmdline-tools/latest/"
-
-
-      # ==========================================
-      # 6. Set Android SDK Environment
-      # ==========================================
-
-      - name: Configure Android SDK
-        run: |
-
-          echo "ANDROID_HOME=$HOME/android-sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
-
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$HOME/android-sdk/platform-tools" >> "$GITHUB_PATH"
-
-          echo "ANDROID_HOME=$HOME/android-sdk"
-          echo "SDK Manager:"
-          "$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager" --version
-
-
-      # ==========================================
-      # 7. Accept Android licenses
-      # ==========================================
-
-      - name: Accept Android licenses
-        run: |
-
-          yes | \
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-          --licenses || true
-
-
-      # ==========================================
-      # 8. Install Android SDK packages
-      # ==========================================
-
-      - name: Install Android SDK packages
-        run: |
-
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-
-      # ==========================================
-      # 9. Create Buildozer spec
-      # ==========================================
-
       - name: Create buildozer.spec
         run: |
           buildozer init
 
-
-      # ==========================================
-      # 10. Configure Buildozer
-      # ==========================================
-
       - name: Configure Buildozer
         run: |
+          sed -i 's/^title = .*/title = VoiceMate AI/' buildozer.spec
+          sed -i 's/^package.name = .*/package.name = voicemateai/' buildozer.spec
+          sed -i 's/^package.domain = .*/package.domain = org.nikhil/' buildozer.spec
+          sed -i 's/^source.include_exts = .*/source.include_exts = py,png,jpg,jpeg,kv,atlas/' buildozer.spec
+          sed -i 's/^requirements = .*/requirements = python3,kivy,speechrecognition/' buildozer.spec
+          sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec
+          sed -i 's/^android.api = .*/android.api = 35/' buildozer.spec
+          sed -i 's/^android.minapi = .*/android.minapi = 23/' buildozer.spec
+          sed -i 's/^android.archs = .*/android.archs = arm64-v8a/' buildozer.spec
+          sed -i 's/^android.permissions = .*/android.permissions = RECORD_AUDIO,INTERNET/' buildozer.spec
+          sed -i 's/^# android.accept_sdk_licenses = .*/android.accept_sdk_licenses = True/' buildozer.spec
 
-          sed -i \
-            's/^title = .*/title = VoiceMate AI/' \
-            buildozer.spec
-
-          sed -i \
-            's/^package.name = .*/package.name = voicemateai/' \
-            buildozer.spec
-
-          sed -i \
-            's/^package.domain = .*/package.domain = org.nikhil/' \
-            buildozer.spec
-
-          sed -i \
-            's/^source.include_exts = .*/source.include_exts = py,png,jpg,jpeg,kv,atlas/' \
-            buildozer.spec
-
-          sed -i \
-            's/^requirements = .*/requirements = python3,kivy,speechrecognition/' \
-            buildozer.spec
-
-          sed -i \
-            's/^orientation = .*/orientation = portrait/' \
-            buildozer.spec
-
-          sed -i \
-            's/^android.api = .*/android.api = 35/' \
-            buildozer.spec
-
-          sed -i \
-            's/^android.minapi = .*/android.minapi = 23/' \
-            buildozer.spec
-
-          sed -i \
-            's/^android.archs = .*/android.archs = arm64-v8a/' \
-            buildozer.spec
-
-          sed -i \
-            's/^android.permissions = .*/android.permissions = RECORD_AUDIO,INTERNET/' \
-            buildozer.spec
-
-          cat >> buildozer.spec <<'EOF'
-
-          [app:android]
-          android.sdk_path = /home/runner/android-sdk
-          EOF
-
-
-      # ==========================================
-      # 11. Show SDK
-      # ==========================================
-
-      - name: Verify Android SDK
+      - name: Build APK with Buildozer
         run: |
+          yes | buildozer -v android debug
 
-          echo "======================================"
-          echo "ANDROID SDK"
-          echo "======================================"
-
-          echo "ANDROID_HOME:"
-          echo "$ANDROID_HOME"
-
-          echo "SDKMANAGER:"
-          which sdkmanager || true
-
-          echo "Build Tools:"
-          ls -la "$ANDROID_HOME/build-tools"
-
-          echo "AIDL:"
-          find "$ANDROID_HOME/build-tools" \
-            -name aidl \
-            -type f \
-            -print
-
-
-      # ==========================================
-      # 12. Build APK
-      # ==========================================
-
-      - name: Build APK
+      - name: Find APK
         run: |
-          buildozer android debug
-
-
-      # ==========================================
-      # 13. Check APK
-      # ==========================================
-
-      - name: Check APK
-        run: |
-
           echo "======================================"
-          echo "GENERATED APK"
+          echo "APK FILE"
           echo "======================================"
-
-          find bin \
-            -type f \
-            -name "*.apk" \
-            -print
-
-
-      # ==========================================
-      # 14. Upload APK
-      # ==========================================
+          find bin -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
