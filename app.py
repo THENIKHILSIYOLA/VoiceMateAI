@@ -1,6 +1,7 @@
 import webbrowser
 import threading
 import subprocess
+
 from datetime import datetime
 
 from kivy.app import App
@@ -20,21 +21,33 @@ Window.size = (400, 700)
 
 
 # =========================================================
-# SPEAK FUNCTION
-# Android build-safe version
+# VOICE FUNCTIONS
+# Android-compatible placeholder
 # =========================================================
 
 def speak(text):
+    """
+    Android-safe placeholder.
+
+    pyttsx3 is removed because it is mainly a desktop
+    voice engine and can cause Android Buildozer problems.
+    """
+
     print("VoiceMate:", text)
 
 
-# =========================================================
-# LISTEN FUNCTION
-# Android build test version
-# =========================================================
-
 def listen():
+    """
+    Android-safe placeholder.
+
+    speech_recognition and sr.Microphone() are removed
+    from the APK build.
+
+    We will add Android native microphone support later.
+    """
+
     print("Voice input is currently disabled in Android build.")
+
     return ""
 
 
@@ -47,11 +60,14 @@ def process_command(command):
     if not command:
         return "I could not understand you."
 
+    command = command.lower().strip()
+
     # =====================================================
     # GREETING
     # =====================================================
 
     if "hello" in command or "hi" in command:
+
         return "Hello Nikhil! How can I help you?"
 
     # =====================================================
@@ -59,6 +75,7 @@ def process_command(command):
     # =====================================================
 
     elif "what is my name" in command:
+
         return "Your name is Nikhil."
 
     # =====================================================
@@ -67,7 +84,9 @@ def process_command(command):
 
     elif "time" in command:
 
-        current_time = datetime.now().strftime("%I:%M %p")
+        current_time = datetime.now().strftime(
+            "%I:%M %p"
+        )
 
         return "The current time is " + current_time
 
@@ -77,7 +96,9 @@ def process_command(command):
 
     elif "date" in command:
 
-        current_date = datetime.now().strftime("%d %B %Y")
+        current_date = datetime.now().strftime(
+            "%d %B %Y"
+        )
 
         return "Today's date is " + current_date
 
@@ -104,7 +125,7 @@ def process_command(command):
             return "I could not open Chrome."
 
     # =====================================================
-    # SILVER OAK UNIVERSITY
+    # SUU PORTAL
     # =====================================================
 
     elif (
@@ -246,7 +267,10 @@ def process_command(command):
 
             webbrowser.open(url)
 
-            return "Searching Google for " + search_text
+            return (
+                "Searching Google for "
+                + search_text
+            )
 
         return "What should I search for?"
 
@@ -270,7 +294,10 @@ def process_command(command):
 
             webbrowser.open(url)
 
-            return "Searching Google for " + search_text
+            return (
+                "Searching Google for "
+                + search_text
+            )
 
         return "What should I search for?"
 
@@ -294,7 +321,10 @@ def process_command(command):
 
             webbrowser.open(url)
 
-            return "Searching YouTube for " + search_text
+            return (
+                "Searching YouTube for "
+                + search_text
+            )
 
         return "What should I search on YouTube?"
 
@@ -328,7 +358,10 @@ def process_command(command):
 
             webbrowser.open(url)
 
-            return "Searching YouTube for " + search_text
+            return (
+                "Searching YouTube for "
+                + search_text
+            )
 
         return "What would you like me to play?"
 
@@ -368,7 +401,10 @@ class RoundedButton(Button):
         super().__init__(**kwargs)
 
         self.background_color = (
-            0, 0, 0, 0
+            0,
+            0,
+            0,
+            0
         )
 
         with self.canvas.before:
@@ -502,7 +538,9 @@ class VoiceMateApp(App):
         )
 
         self.mic_button.bind(
+
             on_press=self.start_listening
+
         )
 
         # -------------------------------------------------
@@ -573,14 +611,18 @@ class VoiceMateApp(App):
     def start_listening(self, instance):
 
         self.status_label.text = (
-            "Voice input is disabled for this Android build."
+            "Listening..."
         )
 
         self.mic_button.text = (
-            "MIC\n\nNOT AVAILABLE"
+            "MIC\n\nLISTENING..."
         )
 
         self.mic_button.disabled = True
+
+        # -------------------------------------------------
+        # BACKGROUND THREAD
+        # -------------------------------------------------
 
         thread = threading.Thread(
             target=self.voice_thread
@@ -599,8 +641,10 @@ class VoiceMateApp(App):
         command = listen()
 
         Clock.schedule_once(
+
             lambda dt:
             self.process_result(command)
+
         )
 
     # =====================================================
@@ -654,8 +698,11 @@ class VoiceMateApp(App):
             # ------------------------------------------------
 
             speech_thread = threading.Thread(
+
                 target=speak,
+
                 args=(response,)
+
             )
 
             speech_thread.daemon = True
@@ -665,7 +712,8 @@ class VoiceMateApp(App):
         else:
 
             self.status_label.text = (
-                "Voice input is currently disabled."
+                "Voice input is not available "
+                "in this Android build yet."
             )
 
     # =====================================================
