@@ -27,7 +27,9 @@ Window.size = (400, 700)
 def speak(text):
     """
     Android-safe placeholder.
-    pyttsx3 is removed for Android compatibility.
+
+    pyttsx3 is intentionally removed because it can
+    cause Android Buildozer compatibility problems.
     """
     print("VoiceMate:", text)
 
@@ -35,8 +37,9 @@ def speak(text):
 def listen():
     """
     Android-safe placeholder.
-    speech_recognition and sr.Microphone()
-    are removed from the APK build.
+
+    speech_recognition and sr.Microphone() are intentionally
+    removed from this Android APK version.
     """
     print("Voice input is currently disabled in Android build.")
     return ""
@@ -95,13 +98,14 @@ def process_command(command):
 
         try:
             subprocess.Popen("start chrome", shell=True)
+
             return "Opening Google Chrome."
 
         except Exception:
             return "I could not open Chrome."
 
     # =====================================================
-    # SUU PORTAL
+    # SILVER OAK UNIVERSITY
     # =====================================================
 
     elif (
@@ -167,6 +171,7 @@ def process_command(command):
     ):
 
         try:
+
             subprocess.Popen(
                 "code",
                 shell=True
@@ -175,6 +180,7 @@ def process_command(command):
             return "Opening Visual Studio Code."
 
         except Exception:
+
             return "I could not open Visual Studio Code."
 
     # =====================================================
@@ -187,6 +193,7 @@ def process_command(command):
     ):
 
         try:
+
             subprocess.Popen(
                 "calc",
                 shell=True
@@ -195,6 +202,7 @@ def process_command(command):
             return "Opening Calculator."
 
         except Exception:
+
             return "I could not open Calculator."
 
     # =====================================================
@@ -207,6 +215,7 @@ def process_command(command):
     ):
 
         try:
+
             subprocess.Popen(
                 "notepad",
                 shell=True
@@ -215,6 +224,7 @@ def process_command(command):
             return "Opening Notepad."
 
         except Exception:
+
             return "I could not open Notepad."
 
     # =====================================================
@@ -315,9 +325,7 @@ def process_command(command):
         search_text = search_text.replace(
             "on youtube",
             ""
-        )
-
-        search_text = search_text.strip()
+        ).strip()
 
         if search_text:
 
@@ -452,12 +460,15 @@ class VoiceMateApp(App):
         current_hour = datetime.now().hour
 
         if current_hour < 12:
+
             greeting = "Good Morning"
 
         elif current_hour < 18:
+
             greeting = "Good Afternoon"
 
         else:
+
             greeting = "Good Evening"
 
         self.greeting_label = Label(
@@ -551,7 +562,9 @@ class VoiceMateApp(App):
 
     def start_listening(self, instance):
 
-        self.status_label.text = "Listening..."
+        self.status_label.text = (
+            "Listening..."
+        )
 
         self.mic_button.text = (
             "MIC\n\nLISTENING..."
@@ -564,6 +577,7 @@ class VoiceMateApp(App):
         )
 
         thread.daemon = True
+
         thread.start()
 
     # =====================================================
@@ -617,6 +631,7 @@ class VoiceMateApp(App):
             )
 
             speech_thread.daemon = True
+
             speech_thread.start()
 
         else:
@@ -634,7 +649,9 @@ class VoiceMateApp(App):
 
         recent = self.history[-5:]
 
-        text = "Recent Commands\n\n"
+        text = (
+            "Recent Commands\n\n"
+        )
 
         for command in reversed(recent):
 
