@@ -1,8 +1,5 @@
-import speech_recognition as sr
-import pyttsx3
 import webbrowser
 import threading
-import subprocess
 
 from datetime import datetime
 
@@ -16,6 +13,28 @@ from kivy.graphics import Color, RoundedRectangle
 
 
 # =========================================================
+# ANDROID IMPORTS
+# =========================================================
+
+try:
+    from android.permissions import request_permissions, Permission
+
+    ANDROID_AVAILABLE = True
+
+except ImportError:
+    ANDROID_AVAILABLE = False
+
+
+try:
+    from jnius import autoclass, PythonJavaClass, java_method
+
+    JNIUS_AVAILABLE = True
+
+except ImportError:
+    JNIUS_AVAILABLE = False
+
+
+# =========================================================
 # WINDOW
 # =========================================================
 
@@ -23,14 +42,214 @@ Window.size = (400, 700)
 
 
 # =========================================================
-# VOICE ENGINE
+# ANDROID VOICE ENGINE
 # =========================================================
 
-recognizer = sr.Recognizer()
+speech_text_result = ""
 
-engine = pyttsx3.init()
 
-engine.setProperty("rate", 170)
+if ANDROID_AVAILABLE and JNIUS_AVAILABLE:
+
+    try:
+
+        PythonActivity = autoclass(
+            "org.kivy.android.PythonActivity"
+        )
+
+        activity = PythonActivity.mActivity
+
+        TextToSpeech = autoclass(
+            "android.speech.tts.TextToSpeech"
+        )
+
+        Locale = autoclass(
+            "java.util.Locale"
+        )
+
+        SpeechRecognizer = autoclass(
+            "android.speech.SpeechRecognizer"
+        )
+
+        RecognizerIntent = autoclass(
+            "android.speech.RecognizerIntent"
+        )
+
+        Intent = autoclass(
+            "android.content.Intent"
+        )
+
+        Bundle = autoclass(
+            "android.os.Bundle"
+        )
+
+        tts = TextToSpeech(
+            activity,
+            None
+        )
+
+        tts.setLanguage(
+            Locale.US
+        )
+
+        recognizer = SpeechRecognizer.createSpeechRecognizer(
+            activity
+        )
+
+        ANDROID_VOICE_READY = True
+
+    except Exception as error:
+
+        print(
+            "Android voice initialization error:",
+            error
+        )
+
+        ANDROID_VOICE_READY = False
+
+else:
+
+    ANDROID_VOICE_READY = False
+
+
+# =========================================================
+# SPEECH LISTENER
+# =========================================================
+
+if ANDROID_VOICE_READY:
+
+    class SpeechListener(
+        PythonJavaClass
+    ):
+
+        __javainterfaces__ = [
+            "android/speech/RecognitionListener"
+        ]
+
+        def __init__(self, callback):
+
+            super().__init__()
+
+            self.callback = callback
+
+
+        @java_method("(Landroid/os/Bundle;)V")
+        def onReadyForSpeech(self, params):
+
+            print(
+                "🎤 Ready for speech"
+            )
+
+
+        @java_method("()V")
+        def onBeginningOfSpeech(self):
+
+            print(
+                "🎤 Speech started"
+            )
+
+
+        @java_method("(F)V")
+        def onRmsChanged(self, rmsdB):
+
+            pass
+
+
+        @java_method("([B)V")
+        def onBufferReceived(self, buffer):
+
+            pass
+
+
+        @java_method("()V")
+        def onEndOfSpeech(self):
+
+            print(
+                "🎤 Speech ended"
+            )
+
+
+        @java_method("(I)V")
+        def onError(self, error):
+
+            print(
+                "Speech recognition error:",
+                error
+            )
+
+            Clock.schedule_once(
+                lambda dt: self.callback("")
+            )
+
+
+        @java_method(
+            "(Landroid/os/Bundle;)V"
+        )
+        def onResults(self, results):
+
+            try:
+
+                matches = results.getStringArrayList(
+                    "results_recognition"
+                )
+
+                if matches and matches.size() > 0:
+
+                    text = str(
+                        matches.get(0)
+                    )
+
+                    print(
+                        "You said:",
+                        text
+                    )
+
+                    Clock.schedule_once(
+                        lambda dt: self.callback(
+                            text.lower()
+                        )
+                    )
+
+                else:
+
+                    Clock.schedule_once(
+                        lambda dt: self.callback("")
+                    )
+
+            except Exception as error:
+
+                print(
+                    "Result error:",
+                    error
+                )
+
+                Clock.schedule_once(
+                    lambda dt: self.callback("")
+                )
+
+
+        @java_method(
+            "(Landroid/os/PartialResults;)V"
+        )
+        def onPartialResults(self, partial_results):
+
+            pass
+
+
+        @java_method(
+            "(Landroid/os/Bundle;)V"
+        )
+        def onEvent(self, event_type, params):
+
+            pass
+
+
+    speech_listener = SpeechListener(
+        None
+    )
+
+else:
+
+    speech_listener = None
 
 
 # =========================================================
@@ -39,76 +258,98 @@ engine.setProperty("rate", 170)
 
 def speak(text):
 
-    print("VoiceMate:", text)
+    print(
+        "VoiceMate:",
+        text
+    )
 
-    try:
+    if ANDROID_VOICE_READY:
 
-        engine.say(text)
-        engine.runAndWait()
+        try:
 
-    except Exception as error:
+            tts.speak(
+                text,
+                TextToSpeech.QUEUE_FLUSH,
+                None,
+                "VoiceMate"
+            )
 
-        print("Voice error:", error)
+        except Exception as error:
+
+            print(
+                "Android TTS error:",
+                error
+            )
+
+    else:
+
+        print(
+            "Text-to-Speech is available only on Android."
+        )
 
 
 # =========================================================
 # LISTEN FUNCTION
 # =========================================================
 
-def listen():
+def start_android_listening(callback):
+
+    global speech_listener
+
+    if not ANDROID_VOICE_READY:
+
+        print(
+            "Android Speech Recognition unavailable."
+        )
+
+        callback("")
+
+        return
+
 
     try:
 
-        with sr.Microphone() as source:
+        speech_listener.callback = callback
 
-            print("\n🎤 Listening...")
+        recognizer.setRecognitionListener(
+            speech_listener
+        )
 
-            recognizer.adjust_for_ambient_noise(
-                source,
-                duration=0.5
-            )
+        intent = Intent(
+            RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+        )
 
-            audio = recognizer.listen(
-                source,
-                timeout=5,
-                phrase_time_limit=8
-            )
+        intent.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
 
-        text = recognizer.recognize_google(audio)
+        intent.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE,
+            "en-IN"
+        )
 
-        text = text.lower()
+        intent.putExtra(
+            RecognizerIntent.EXTRA_MAX_RESULTS,
+            5
+        )
 
-        print("You said:", text)
+        recognizer.startListening(
+            intent
+        )
 
-        return text
-
-
-    except sr.WaitTimeoutError:
-
-        print("❌ No voice detected.")
-
-        return ""
-
-
-    except sr.UnknownValueError:
-
-        print("❌ Could not understand.")
-
-        return ""
-
-
-    except sr.RequestError:
-
-        print("❌ Speech recognition service error.")
-
-        return ""
-
+        print(
+            "🎤 Listening..."
+        )
 
     except Exception as error:
 
-        print("Microphone error:", error)
+        print(
+            "Microphone error:",
+            error
+        )
 
-        return ""
+        callback("")
 
 
 # =========================================================
@@ -119,16 +360,27 @@ def process_command(command):
 
     if not command:
 
-        return "I could not understand you."
+        return (
+            "I could not understand you."
+        )
+
+
+    command = command.lower().strip()
 
 
     # =====================================================
     # GREETING
     # =====================================================
 
-    if "hello" in command or "hi" in command:
+    if (
+        "hello" in command
+        or "hi" in command
+    ):
 
-        return "Hello Nikhil! How can I help you?"
+        return (
+            "Hello Nikhil! "
+            "How can I help you?"
+        )
 
 
     # =====================================================
@@ -137,7 +389,9 @@ def process_command(command):
 
     elif "what is my name" in command:
 
-        return "Your name is Nikhil."
+        return (
+            "Your name is Nikhil."
+        )
 
 
     # =====================================================
@@ -150,7 +404,10 @@ def process_command(command):
             "%I:%M %p"
         )
 
-        return "The current time is " + current_time
+        return (
+            "The current time is "
+            + current_time
+        )
 
 
     # =====================================================
@@ -163,34 +420,14 @@ def process_command(command):
             "%d %B %Y"
         )
 
-        return "Today's date is " + current_date
+        return (
+            "Today's date is "
+            + current_date
+        )
 
 
     # =====================================================
-    # OPEN CHROME
-    # =====================================================
-
-    elif (
-        "open chrome" in command
-        or "start chrome" in command
-    ):
-
-        try:
-
-            subprocess.Popen(
-                "start chrome",
-                shell=True
-            )
-
-            return "Opening Google Chrome."
-
-        except Exception:
-
-            return "I could not open Chrome."
-
-
-    # =====================================================
-    # SUU PORTAL
+    # SILVER OAK UNIVERSITY
     # =====================================================
 
     elif (
@@ -204,7 +441,9 @@ def process_command(command):
             "https://www.silveroakuni.ac.in/"
         )
 
-        return "Opening Silver Oak University."
+        return (
+            "Opening Silver Oak University."
+        )
 
 
     # =====================================================
@@ -217,7 +456,9 @@ def process_command(command):
             "https://www.youtube.com"
         )
 
-        return "Opening YouTube."
+        return (
+            "Opening YouTube."
+        )
 
 
     # =====================================================
@@ -230,7 +471,9 @@ def process_command(command):
             "https://www.google.com"
         )
 
-        return "Opening Google."
+        return (
+            "Opening Google."
+        )
 
 
     # =====================================================
@@ -246,7 +489,27 @@ def process_command(command):
             "https://web.whatsapp.com/"
         )
 
-        return "Opening WhatsApp."
+        return (
+            "Opening WhatsApp."
+        )
+
+
+    # =====================================================
+    # OPEN CHROME
+    # =====================================================
+
+    elif (
+        "open chrome" in command
+        or "start chrome" in command
+    ):
+
+        webbrowser.open(
+            "https://www.google.com"
+        )
+
+        return (
+            "Opening your browser."
+        )
 
 
     # =====================================================
@@ -259,20 +522,10 @@ def process_command(command):
         or "open code" in command
     ):
 
-        try:
-
-            subprocess.Popen(
-                "code",
-                shell=True
-            )
-
-            return "Opening Visual Studio Code."
-
-        except Exception:
-
-            return (
-                "I could not open Visual Studio Code."
-            )
+        return (
+            "Visual Studio Code cannot be "
+            "opened directly from the Android app."
+        )
 
 
     # =====================================================
@@ -284,18 +537,10 @@ def process_command(command):
         or "open calc" in command
     ):
 
-        try:
-
-            subprocess.Popen(
-                "calc",
-                shell=True
-            )
-
-            return "Opening Calculator."
-
-        except Exception:
-
-            return "I could not open Calculator."
+        return (
+            "Android calculator can be opened "
+            "from your phone."
+        )
 
 
     # =====================================================
@@ -307,25 +552,19 @@ def process_command(command):
         or "open note pad" in command
     ):
 
-        try:
-
-            subprocess.Popen(
-                "notepad",
-                shell=True
-            )
-
-            return "Opening Notepad."
-
-        except Exception:
-
-            return "I could not open Notepad."
+        return (
+            "Notepad is not available as a "
+            "Windows application on Android."
+        )
 
 
     # =====================================================
     # GOOGLE SEARCH
     # =====================================================
 
-    elif "search google for" in command:
+    elif (
+        "search google for" in command
+    ):
 
         search_text = command.replace(
             "search google for",
@@ -337,10 +576,15 @@ def process_command(command):
 
             url = (
                 "https://www.google.com/search?q="
-                + search_text.replace(" ", "+")
+                + search_text.replace(
+                    " ",
+                    "+"
+                )
             )
 
-            webbrowser.open(url)
+            webbrowser.open(
+                url
+            )
 
             return (
                 "Searching Google for "
@@ -348,11 +592,13 @@ def process_command(command):
             )
 
 
-        return "What should I search for?"
+        return (
+            "What should I search for?"
+        )
 
 
     # =====================================================
-    # SEARCH GOOGLE
+    # GOOGLE SEARCH SHORT
     # =====================================================
 
     elif "google search" in command:
@@ -367,10 +613,15 @@ def process_command(command):
 
             url = (
                 "https://www.google.com/search?q="
-                + search_text.replace(" ", "+")
+                + search_text.replace(
+                    " ",
+                    "+"
+                )
             )
 
-            webbrowser.open(url)
+            webbrowser.open(
+                url
+            )
 
             return (
                 "Searching Google for "
@@ -378,14 +629,18 @@ def process_command(command):
             )
 
 
-        return "What should I search for?"
+        return (
+            "What should I search for?"
+        )
 
 
     # =====================================================
     # YOUTUBE SEARCH
     # =====================================================
 
-    elif "search youtube for" in command:
+    elif (
+        "search youtube for" in command
+    ):
 
         search_text = command.replace(
             "search youtube for",
@@ -397,10 +652,15 @@ def process_command(command):
 
             url = (
                 "https://www.youtube.com/results?search_query="
-                + search_text.replace(" ", "+")
+                + search_text.replace(
+                    " ",
+                    "+"
+                )
             )
 
-            webbrowser.open(url)
+            webbrowser.open(
+                url
+            )
 
             return (
                 "Searching YouTube for "
@@ -408,11 +668,13 @@ def process_command(command):
             )
 
 
-        return "What should I search on YouTube?"
+        return (
+            "What should I search on YouTube?"
+        )
 
 
     # =====================================================
-    # PLAY ON YOUTUBE
+    # PLAY YOUTUBE
     # =====================================================
 
     elif (
@@ -437,10 +699,15 @@ def process_command(command):
 
             url = (
                 "https://www.youtube.com/results?search_query="
-                + search_text.replace(" ", "+")
+                + search_text.replace(
+                    " ",
+                    "+"
+                )
             )
 
-            webbrowser.open(url)
+            webbrowser.open(
+                url
+            )
 
             return (
                 "Searching YouTube for "
@@ -448,7 +715,9 @@ def process_command(command):
             )
 
 
-        return "What would you like me to play?"
+        return (
+            "What would you like me to play?"
+        )
 
 
     # =====================================================
@@ -462,7 +731,9 @@ def process_command(command):
         or "close assistant" in command
     ):
 
-        return "Goodbye Nikhil!"
+        return (
+            "Goodbye Nikhil!"
+        )
 
 
     # =====================================================
@@ -485,10 +756,15 @@ class RoundedButton(Button):
 
     def __init__(self, **kwargs):
 
-        super().__init__(**kwargs)
+        super().__init__(
+            **kwargs
+        )
 
         self.background_color = (
-            0, 0, 0, 0
+            0,
+            0,
+            0,
+            0
         )
 
         with self.canvas.before:
@@ -512,11 +788,18 @@ class RoundedButton(Button):
         )
 
 
-    def update_background(self, *args):
+    def update_background(
+        self,
+        *args
+    ):
 
-        self.background.pos = self.pos
+        self.background.pos = (
+            self.pos
+        )
 
-        self.background.size = self.size
+        self.background.size = (
+            self.size
+        )
 
 
 # =========================================================
@@ -527,14 +810,39 @@ class VoiceMateApp(App):
 
 
     # =====================================================
-    # BUILD UI
+    # BUILD
     # =====================================================
 
     def build(self):
 
-        self.title = "VoiceMate AI"
+        self.title = (
+            "VoiceMate AI"
+        )
 
         self.history = []
+
+
+        # -------------------------------------------------
+        # REQUEST ANDROID PERMISSIONS
+        # -------------------------------------------------
+
+        if ANDROID_AVAILABLE:
+
+            try:
+
+                request_permissions(
+                    [
+                        Permission.RECORD_AUDIO,
+                        Permission.INTERNET
+                    ]
+                )
+
+            except Exception as error:
+
+                print(
+                    "Permission error:",
+                    error
+                )
 
 
         # -------------------------------------------------
@@ -576,20 +884,28 @@ class VoiceMateApp(App):
         # GREETING
         # -------------------------------------------------
 
-        current_hour = datetime.now().hour
+        current_hour = (
+            datetime.now().hour
+        )
 
 
         if current_hour < 12:
 
-            greeting = "Good Morning"
+            greeting = (
+                "Good Morning"
+            )
 
         elif current_hour < 18:
 
-            greeting = "Good Afternoon"
+            greeting = (
+                "Good Afternoon"
+            )
 
         else:
 
-            greeting = "Good Evening"
+            greeting = (
+                "Good Evening"
+            )
 
 
         self.greeting_label = Label(
@@ -708,7 +1024,10 @@ class VoiceMateApp(App):
     # START LISTENING
     # =====================================================
 
-    def start_listening(self, instance):
+    def start_listening(
+        self,
+        instance
+    ):
 
         self.status_label.text = (
             "Listening..."
@@ -721,43 +1040,55 @@ class VoiceMateApp(App):
         self.mic_button.disabled = True
 
 
-        # -------------------------------------------------
-        # BACKGROUND THREAD
-        # -------------------------------------------------
+        if ANDROID_VOICE_READY:
 
-        thread = threading.Thread(
+            thread = threading.Thread(
 
-            target=self.voice_thread
+                target=self.android_voice_thread
 
-        )
+            )
 
-        thread.daemon = True
+            thread.daemon = True
 
-        thread.start()
+            thread.start()
+
+        else:
+
+            self.process_result("")
 
 
     # =====================================================
-    # VOICE THREAD
+    # ANDROID VOICE THREAD
     # =====================================================
 
-    def voice_thread(self):
+    def android_voice_thread(self):
 
-        command = listen()
+        try:
 
+            start_android_listening(
+                self.process_result
+            )
 
-        Clock.schedule_once(
+        except Exception as error:
 
-            lambda dt:
-            self.process_result(command)
+            print(
+                "Voice thread error:",
+                error
+            )
 
-        )
+            Clock.schedule_once(
+                lambda dt: self.process_result("")
+            )
 
 
     # =====================================================
     # PROCESS RESULT
     # =====================================================
 
-    def process_result(self, command):
+    def process_result(
+        self,
+        command
+    ):
 
         self.mic_button.disabled = False
 
@@ -777,25 +1108,27 @@ class VoiceMateApp(App):
             )
 
 
-            # ------------------------------------------------
+            # ---------------------------------------------
             # PROCESS COMMAND
-            # ------------------------------------------------
+            # ---------------------------------------------
 
             response = process_command(
                 command
             )
 
 
-            # ------------------------------------------------
+            # ---------------------------------------------
             # SHOW RESPONSE
-            # ------------------------------------------------
+            # ---------------------------------------------
 
-            self.status_label.text = response
+            self.status_label.text = (
+                response
+            )
 
 
-            # ------------------------------------------------
+            # ---------------------------------------------
             # HISTORY
-            # ------------------------------------------------
+            # ---------------------------------------------
 
             self.history.append(
                 command
@@ -805,9 +1138,9 @@ class VoiceMateApp(App):
             self.update_history()
 
 
-            # ------------------------------------------------
+            # ---------------------------------------------
             # VOICE RESPONSE
-            # ------------------------------------------------
+            # ---------------------------------------------
 
             speech_thread = threading.Thread(
 
@@ -835,7 +1168,9 @@ class VoiceMateApp(App):
 
     def update_history(self):
 
-        recent = self.history[-5:]
+        recent = (
+            self.history[-5:]
+        )
 
 
         text = (
@@ -843,7 +1178,9 @@ class VoiceMateApp(App):
         )
 
 
-        for command in reversed(recent):
+        for command in reversed(
+            recent
+        ):
 
             text += (
                 "• "
@@ -852,7 +1189,9 @@ class VoiceMateApp(App):
             )
 
 
-        self.history_label.text = text
+        self.history_label.text = (
+            text
+        )
 
 
 # =========================================================
