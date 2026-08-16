@@ -1,3 +1,4 @@
+```yaml
 name: Build VoiceMate AI APK
 
 on:
@@ -8,31 +9,33 @@ on:
 
 jobs:
   build:
-    name: Build VoiceMate AI APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
 
       # ==========================================
-      # 1. CHECKOUT PROJECT
+      # 1. CHECKOUT
       # ==========================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
       # ==========================================
-      # 2. SETUP PYTHON
+      # 2. SETUP PYTHON 3.11
       # ==========================================
-      - name: Setup Python
+
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
 
       # ==========================================
-      # 3. SETUP JAVA
+      # 3. SETUP JAVA 17
       # ==========================================
-      - name: Setup Java
+
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -40,19 +43,17 @@ jobs:
 
 
       # ==========================================
-      # 4. INSTALL LINUX DEPENDENCIES
+      # 4. INSTALL SYSTEM DEPENDENCIES
       # ==========================================
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
             git \
             zip \
             unzip \
             openjdk-17-jdk \
-            python3-pip \
-            python3-virtualenv \
             autoconf \
             automake \
             libtool \
@@ -60,55 +61,35 @@ jobs:
             zlib1g-dev \
             libncurses5-dev \
             libncursesw5-dev \
-            libtinfo6 \
             cmake \
             libffi-dev \
-            libssl-dev \
-            gettext \
-            autopoint
+            libssl-dev
 
 
       # ==========================================
-      # 5. UPGRADE PIP
+      # 5. INSTALL BUILDOZER
       # ==========================================
-      - name: Upgrade pip
-        run: |
-          python -m pip install --upgrade pip setuptools
 
-
-      # ==========================================
-      # 6. INSTALL BUILDOZER
-      # ==========================================
       - name: Install Buildozer
         run: |
+          python -m pip install --upgrade pip
+          pip install "cython==0.29.33"
           pip install buildozer
-          pip install cython==0.29.34
 
 
       # ==========================================
-      # 7. CHECK PYTHON / BUILDOZER
+      # 6. CREATE BUILDOZER SPEC
       # ==========================================
-      - name: Check build environment
+
+      - name: Create buildozer.spec
         run: |
-          python --version
-          pip --version
-          buildozer --version
-          java -version
+          buildozer init
 
 
       # ==========================================
-      # 8. CREATE BUILDOZER SPEC
+      # 7. CONFIGURE BUILDOZER
       # ==========================================
-      - name: Create Buildozer spec
-        run: |
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
 
-
-      # ==========================================
-      # 9. CONFIGURE BUILDOZER
-      # ==========================================
       - name: Configure Buildozer
         run: |
 
@@ -124,31 +105,29 @@ jobs:
 
           sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec
 
-          sed -i 's/^android.api = .*/android.api = 35/' buildozer.spec
+          sed -i 's/^android.api = .*/android.api = 33/' buildozer.spec
 
           sed -i 's/^android.minapi = .*/android.minapi = 24/' buildozer.spec
 
-          sed -i 's/^android.ndk = .*/android.ndk = 28c/' buildozer.spec
-
           sed -i 's/^android.archs = .*/android.archs = arm64-v8a/' buildozer.spec
 
-          sed -i 's/^android.permissions = .*/android.permissions = RECORD_AUDIO,INTERNET/' buildozer.spec
+          sed -i 's/^android.permissions = .*/android.permissions = INTERNET,RECORD_AUDIO/' buildozer.spec
 
-          sed -i 's/^# *android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
+          sed -i 's/^# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
 
-          sed -i 's/^# *android.accept_sdk_licenses = .*/android.accept_sdk_licenses = True/' buildozer.spec
+          sed -i 's/^# android.accept_sdk_licenses = .*/android.accept_sdk_licenses = True/' buildozer.spec
 
           echo ""
           echo "=========================================="
-          echo "FINAL BUILDOZER CONFIGURATION"
+          echo "BUILDOZER CONFIGURATION"
           echo "=========================================="
-
           cat buildozer.spec
 
 
       # ==========================================
-      # 10. CLEAN OLD BUILD CACHE
+      # 8. CLEAN OLD BUILD
       # ==========================================
+
       - name: Clean Buildozer cache
         run: |
           rm -rf .buildozer
@@ -156,21 +135,19 @@ jobs:
 
 
       # ==========================================
-      # 11. BUILD APK
+      # 9. BUILD APK
       # ==========================================
-      - name: Build VoiceMate AI APK
-        env:
-          BUILDOZER_ALLOW_ORG_TEST_DOMAIN: "1"
-          P4A_RELEASE_KEYSTORE: ""
+
+      - name: Build APK with Buildozer
         run: |
           yes | buildozer -v android debug
 
 
       # ==========================================
-      # 12. FIND APK
+      # 10. FIND APK
       # ==========================================
+
       - name: Find APK
-        if: always()
         run: |
           echo "=========================================="
           echo "APK FILES"
@@ -179,17 +156,19 @@ jobs:
           if [ -d bin ]; then
             find bin -type f -name "*.apk" -print
           else
-            echo "bin directory does not exist"
+            echo "ERROR: bin directory does not exist"
+            exit 1
           fi
 
 
       # ==========================================
-      # 13. UPLOAD APK
+      # 11. UPLOAD APK
       # ==========================================
+
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: VoiceMateAI-APK
           path: bin/*.apk
           if-no-files-found: error
+```
