@@ -22,32 +22,23 @@ Window.size = (400, 700)
 
 # =========================================================
 # VOICE FUNCTIONS
-# Android-compatible placeholder
 # =========================================================
 
 def speak(text):
     """
     Android-safe placeholder.
-
-    pyttsx3 is removed because it is mainly a desktop
-    voice engine and can cause Android Buildozer problems.
+    pyttsx3 is removed for Android compatibility.
     """
-
     print("VoiceMate:", text)
 
 
 def listen():
     """
     Android-safe placeholder.
-
-    speech_recognition and sr.Microphone() are removed
-    from the APK build.
-
-    We will add Android native microphone support later.
+    speech_recognition and sr.Microphone()
+    are removed from the APK build.
     """
-
     print("Voice input is currently disabled in Android build.")
-
     return ""
 
 
@@ -67,7 +58,6 @@ def process_command(command):
     # =====================================================
 
     if "hello" in command or "hi" in command:
-
         return "Hello Nikhil! How can I help you?"
 
     # =====================================================
@@ -75,7 +65,6 @@ def process_command(command):
     # =====================================================
 
     elif "what is my name" in command:
-
         return "Your name is Nikhil."
 
     # =====================================================
@@ -84,9 +73,7 @@ def process_command(command):
 
     elif "time" in command:
 
-        current_time = datetime.now().strftime(
-            "%I:%M %p"
-        )
+        current_time = datetime.now().strftime("%I:%M %p")
 
         return "The current time is " + current_time
 
@@ -96,9 +83,7 @@ def process_command(command):
 
     elif "date" in command:
 
-        current_date = datetime.now().strftime(
-            "%d %B %Y"
-        )
+        current_date = datetime.now().strftime("%d %B %Y")
 
         return "Today's date is " + current_date
 
@@ -106,22 +91,13 @@ def process_command(command):
     # OPEN CHROME
     # =====================================================
 
-    elif (
-        "open chrome" in command
-        or "start chrome" in command
-    ):
+    elif "open chrome" in command or "start chrome" in command:
 
         try:
-
-            subprocess.Popen(
-                "start chrome",
-                shell=True
-            )
-
+            subprocess.Popen("start chrome", shell=True)
             return "Opening Google Chrome."
 
         except Exception:
-
             return "I could not open Chrome."
 
     # =====================================================
@@ -191,7 +167,6 @@ def process_command(command):
     ):
 
         try:
-
             subprocess.Popen(
                 "code",
                 shell=True
@@ -200,7 +175,6 @@ def process_command(command):
             return "Opening Visual Studio Code."
 
         except Exception:
-
             return "I could not open Visual Studio Code."
 
     # =====================================================
@@ -213,7 +187,6 @@ def process_command(command):
     ):
 
         try:
-
             subprocess.Popen(
                 "calc",
                 shell=True
@@ -222,7 +195,6 @@ def process_command(command):
             return "Opening Calculator."
 
         except Exception:
-
             return "I could not open Calculator."
 
     # =====================================================
@@ -235,7 +207,6 @@ def process_command(command):
     ):
 
         try:
-
             subprocess.Popen(
                 "notepad",
                 shell=True
@@ -244,7 +215,6 @@ def process_command(command):
             return "Opening Notepad."
 
         except Exception:
-
             return "I could not open Notepad."
 
     # =====================================================
@@ -454,16 +424,13 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.layout = BoxLayout(
-
             orientation="vertical",
-
             padding=[
                 25,
                 25,
                 25,
                 20
             ],
-
             spacing=12
         )
 
@@ -472,13 +439,9 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.title_label = Label(
-
             text="VoiceMate AI",
-
             font_size=30,
-
             bold=True,
-
             size_hint_y=0.10
         )
 
@@ -489,23 +452,17 @@ class VoiceMateApp(App):
         current_hour = datetime.now().hour
 
         if current_hour < 12:
-
             greeting = "Good Morning"
 
         elif current_hour < 18:
-
             greeting = "Good Afternoon"
 
         else:
-
             greeting = "Good Evening"
 
         self.greeting_label = Label(
-
             text=greeting,
-
             font_size=21,
-
             size_hint_y=0.08
         )
 
@@ -514,11 +471,8 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.status_label = Label(
-
             text="How can I help you?",
-
             font_size=18,
-
             size_hint_y=0.10
         )
 
@@ -527,20 +481,14 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.mic_button = RoundedButton(
-
             text="MIC\n\nTAP TO SPEAK",
-
             font_size=22,
-
             bold=True,
-
             size_hint_y=0.30
         )
 
         self.mic_button.bind(
-
             on_press=self.start_listening
-
         )
 
         # -------------------------------------------------
@@ -548,11 +496,8 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.command_label = Label(
-
             text='You said:\n"Nothing yet"',
-
             font_size=17,
-
             size_hint_y=0.17
         )
 
@@ -561,16 +506,12 @@ class VoiceMateApp(App):
         # -------------------------------------------------
 
         self.history_label = Label(
-
             text=(
                 "Recent Commands\n\n"
                 "No commands yet"
             ),
-
             font_size=15,
-
             halign="left",
-
             size_hint_y=0.25
         )
 
@@ -610,9 +551,7 @@ class VoiceMateApp(App):
 
     def start_listening(self, instance):
 
-        self.status_label.text = (
-            "Listening..."
-        )
+        self.status_label.text = "Listening..."
 
         self.mic_button.text = (
             "MIC\n\nLISTENING..."
@@ -620,16 +559,11 @@ class VoiceMateApp(App):
 
         self.mic_button.disabled = True
 
-        # -------------------------------------------------
-        # BACKGROUND THREAD
-        # -------------------------------------------------
-
         thread = threading.Thread(
             target=self.voice_thread
         )
 
         thread.daemon = True
-
         thread.start()
 
     # =====================================================
@@ -641,10 +575,8 @@ class VoiceMateApp(App):
         command = listen()
 
         Clock.schedule_once(
-
             lambda dt:
             self.process_result(command)
-
         )
 
     # =====================================================
@@ -662,30 +594,16 @@ class VoiceMateApp(App):
         if command:
 
             self.command_label.text = (
-
                 'You said:\n"'
                 + command
                 + '"'
-
             )
-
-            # ------------------------------------------------
-            # PROCESS COMMAND
-            # ------------------------------------------------
 
             response = process_command(
                 command
             )
 
-            # ------------------------------------------------
-            # SHOW RESPONSE
-            # ------------------------------------------------
-
             self.status_label.text = response
-
-            # ------------------------------------------------
-            # HISTORY
-            # ------------------------------------------------
 
             self.history.append(
                 command
@@ -693,20 +611,12 @@ class VoiceMateApp(App):
 
             self.update_history()
 
-            # ------------------------------------------------
-            # VOICE RESPONSE
-            # ------------------------------------------------
-
             speech_thread = threading.Thread(
-
                 target=speak,
-
                 args=(response,)
-
             )
 
             speech_thread.daemon = True
-
             speech_thread.start()
 
         else:
@@ -724,9 +634,7 @@ class VoiceMateApp(App):
 
         recent = self.history[-5:]
 
-        text = (
-            "Recent Commands\n\n"
-        )
+        text = "Recent Commands\n\n"
 
         for command in reversed(recent):
 
