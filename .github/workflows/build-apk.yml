@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -45,11 +44,16 @@ jobs:
             libffi-dev \
             libssl-dev
 
-      - name: Install Buildozer
+      - name: Verify Python version
+        run: |
+          python --version
+          python -m pip --version
+
+      - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip
-          pip install "cython==0.29.33"
-          pip install buildozer
+          python -m pip install "cython==0.29.33"
+          python -m pip install "buildozer==1.5.0"
 
       - name: Create buildozer.spec
         run: |
@@ -69,21 +73,20 @@ jobs:
           sed -i 's/^android.permissions = .*/android.permissions = INTERNET,RECORD_AUDIO/' buildozer.spec
 
           echo "=========================================="
-          echo "BUILDOZER CONFIGURATION"
+          echo "BUILDOZER CONFIG"
           echo "=========================================="
-
           cat buildozer.spec
 
-      - name: Clean Buildozer cache
+      - name: Clean old Buildozer files
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-      - name: Build APK with Buildozer
+      - name: Build APK
         run: |
           yes | buildozer -v android debug
 
-      - name: Find APK
+      - name: Show APK
         run: |
           echo "=========================================="
           echo "APK FILES"
